@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Song Bounce</title>
+  <style>
+    :root { color-scheme: dark; --accent: #F7C449; --bg: #151515; --panel: #1e1e21; --line: #2c2c30; --dim: #8a8a90; --ok: #7fd18b; --err: #ff8a80; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: #ddd; font: 13px -apple-system, Helvetica, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+    button, input { font: inherit; color: inherit; }
+    button { background: #2a2a2e; border: 1px solid #44444a; border-radius: 5px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+    button:hover:not(:disabled) { border-color: #66666c; }
+    button:disabled { opacity: .4; cursor: default; }
+    button.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+    header { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; background: #202023; border-bottom: 1px solid var(--line); }
+    header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+    #session { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .settings { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    .settings label { color: var(--dim); }
+    #folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-size: 12px; }
+    .folder-btns { display: flex; gap: 6px; }
+    #trimDb { width: 64px; background: #111; border: 1px solid #3a3a40; border-radius: 5px; padding: 3px 6px; }
+    .endrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #tail { width: 64px; background: #111; border: 1px solid #3a3a40; border-radius: 5px; padding: 3px 6px; }
+    .bar { display: flex; gap: 8px; align-items: center; padding: 8px 14px; }
+    .bar .grow { flex: 1; }
+    #summary { color: var(--dim); font-size: 12px; }
+    main { flex: 1; overflow: auto; padding: 0 14px 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--dim); padding: 6px 4px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); }
+    td { padding: 6px 4px; border-bottom: 1px solid #222226; vertical-align: top; }
+    td.num { font-family: Menlo, monospace; font-size: 12px; white-space: nowrap; }
+    tr.empty td { color: var(--dim); }
+    .how { font-size: 11px; color: var(--dim); }
+    .file { font-size: 11px; color: var(--dim); }
+    .status { font-size: 12px; white-space: nowrap; }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+    progress { width: 70px; height: 6px; vertical-align: middle; accent-color: var(--accent); }
+    #none { color: var(--dim); padding: 18px 2px; line-height: 1.5; }
+    .section { padding: 8px 14px; border-bottom: 1px solid var(--line); }
+    .section h2 { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--dim); margin: 0 0 6px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .section h2 .grow { flex: 1; }
+    .version { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+    .version .vname { font-weight: 600; min-width: 90px; }
+    .version .vmutes { flex: 1; color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .version .warn { color: var(--err); }
+    .version button { padding: 1px 7px; }
+    #editor { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-top: 6px; }
+    #editor input[type=text] { width: 100%; background: #111; border: 1px solid #3a3a40; border-radius: 5px; padding: 4px 8px; margin-bottom: 8px; }
+    #editor .hint { color: var(--dim); font-size: 12px; margin-bottom: 6px; }
+    #chlist { max-height: 180px; overflow: auto; columns: 2; column-gap: 16px; }
+    #chlist label { display: block; padding: 2px 0; break-inside: avoid; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #chlist .kind { color: var(--dim); font-size: 11px; }
+    #chlist .gone { color: var(--err); }
+    #editor .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+    #banner { background: #4a2b14; border-bottom: 1px solid #7a4a1f; padding: 8px 14px; display: flex; gap: 10px; align-items: center; }
+    #banner span { flex: 1; }
+    #warning { color: var(--err); font-size: 12px; padding: 0 14px 6px; }
+    .vs { display: inline-block; margin-right: 8px; }
+    select { font: inherit; color: inherit; background: #2a2a2e; border: 1px solid #44444a; border-radius: 5px; padding: 3px 6px; max-width: 180px; text-transform: none; letter-spacing: 0; font-weight: normal; }
+    .pkg { display: grid; grid-template-columns: auto 1fr auto auto; gap: 4px 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid #222226; }
+    .pkg:last-child { border-bottom: 0; }
+    .pkg .pname { font-weight: 600; }
+    .pkg .opts { grid-column: 2 / 5; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; color: var(--dim); font-size: 12px; }
+    .pkg .opts label { display: inline-flex; gap: 4px; align-items: center; }
+    .pkg .pfolder { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pkg button { padding: 1px 7px; }
+    .pkg .files { grid-column: 2 / 5; color: var(--dim); font-size: 11px; }
+    #packages .empty { color: var(--dim); font-size: 12px; }
+    footer { border-top: 1px solid var(--line); padding: 8px 14px; }
+    #log { font: 11px Menlo, monospace; color: #aaa; max-height: 90px; overflow: auto; white-space: pre-wrap; }
+    #log .err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Song Bounce <span id="ver" class="how"></span></h1>
+    <span id="session">connecting…</span>
+  </header>
+  <div id="banner" hidden><span>A bounce was interrupted before your mutes were put back.</span><button id="restoreBtn" class="primary">Restore mutes</button><button id="forgetBtn">Ignore</button></div>
+  <div class="settings">
+    <label>Folder</label>
+    <span id="folder" title="">–</span>
+    <span class="folder-btns">
+      <button id="choose">Choose…</button>
+      <button id="reveal" title="Show in Finder">Show</button>
+    </span>
+    <label for="endMode">Song end</label>
+    <span class="endrow">
+      <select id="endMode"><option value="trim">Trim silence below</option><option value="tail">Fixed tail of</option></select>
+      <span id="trimBox"><input id="trimDb" type="number" min="-120" max="-20" step="1"> dB after the last clip</span>
+      <span id="tailBox"><input id="tail" type="number" min="0" max="60" step="0.5"> seconds after the last clip</span>
+    </span>
+    <span></span>
+    <span></span>
+    <span class="how">Bounces the main output, with your main plugins and fader. Files with the same name in this folder are replaced.</span>
+    <span></span>
+  </div>
+  <div class="section">
+    <h2><span>Versions</span><span class="grow"></span><button id="addVersion">+ Add version</button></h2>
+    <div id="versions"></div>
+    <div id="editor" hidden>
+      <input id="vname" type="text" placeholder="Version name, e.g. Instrumental">
+      <div class="hint">Tick what this version mutes. Everything else plays as you left it.</div>
+      <div id="chlist"></div>
+      <div class="row"><button id="vcancel">Cancel</button><button id="vsave" class="primary">Save</button></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2><span>Minus-one packages</span><span class="grow"></span><select id="pkgPart"></select><button id="addPkg">+ Add</button></h2>
+    <div id="packages"></div>
+  </div>
+  <div id="warning" hidden></div>
+  <div class="bar">
+    <button id="all">All</button>
+    <button id="noneBtn">None</button>
+    <button id="refresh" title="Read markers and clips again">Refresh</button>
+    <span class="grow" id="summary"></span>
+    <button id="stop" disabled>Stop</button>
+    <button id="bounce" class="primary" disabled>Bounce</button>
+  </div>
+  <main>
+    <table id="table" hidden>
+      <thead><tr><th></th><th>Song</th><th>Start</th><th>Length</th><th></th></tr></thead>
+      <tbody id="songs"></tbody>
+    </table>
+    <div id="none" hidden></div>
+  </main>
+  <footer><div id="log"></div></footer>
+  <script src="vendor/luna.global.js"></script>
+  <script src="logic.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
