@@ -1,13 +1,18 @@
 // Song Bounce: logic with no DOM, so tests can exercise it against Luna.MockEngine.
 //
-// Songs come from markers. A marker with a name starts a song; a marker named "End" ends
-// the song before it. A song with no End marker ends where its last clip ends, plus a tail
-// for reverb, and never later than the next marker. Each song is bounced from the main
-// output (main plugins and main fader included) to its own file, named after its marker.
+// Two ways to find songs:
+// - Whole song (the default): the session is one song, from its first clip to its last clip
+//   plus a tail, named after the session. Markers are ignored, so section markers (Verse,
+//   Chorus…) don't split it.
+// - Song per marker, for album sessions: a marker with a name starts a song; a marker named
+//   "End" ends the song before it. A song with no End marker ends where its last clip ends,
+//   plus a tail for reverb, and never later than the next marker.
+// Each song is bounced from the main output (main plugins and main fader included) to its own
+// file.
 
 const SongLogic = {
   /** Shown in the window, so it is clear which version LUNA has loaded. Keep in step with manifest.json. */
-  VERSION: '0.4.3',
+  VERSION: '0.5.0',
   DEFAULT_TAIL_SECONDS: 4,
   ADD_ON_ID: 'com.audioplanet.song_bounce',
   /** Trimming: how far past the last clip to look for the end of the sound, at most. */
@@ -81,6 +86,20 @@ const SongLogic = {
     return songs;
   },
 
+  /**
+   * The whole session as one song: from the first clip to the last clip plus the tail, named
+   * `name` (the session's name). Pure, like computeSongs, and returns the same shape: one song,
+   * or one `'empty'` song when nothing plays.
+   */
+  computeWholeSong(name, clips, addTail) {
+    const song = { name: String(name ?? '').trim() || 'Untitled' };
+    song.fileName = `${SongLogic.safeFileName(song.name)}.wav`;
+    if (!clips.length) return [{ ...song, start: 0, end: null, reason: 'empty' }];
+    const start = Math.min(...clips.map((c) => c.start));
+    const last = Math.max(...clips.map((c) => c.stop));
+    return [{ ...song, start, end: addTail(last), lastClip: last, reason: 'last-clip' }];
+  },
+
   /** Markers as `[{ name, tick }]`. */
   async readMarkers(session) {
     await session.markers.load();
@@ -126,11 +145,13 @@ const SongLogic = {
     };
   },
 
-  /** The songs of a session, read fresh from LUNA. */
-  async songs(session, tailSeconds) {
+  /** The songs of a session, read fresh from LUNA. `mode` is `'markers'` or `'whole'`. */
+  async songs(session, tailSeconds, mode = 'markers') {
     await session.playlists.load();
+    const addTail = SongLogic.tailAdder(session, tailSeconds);
+    if (mode === 'whole') return SongLogic.computeWholeSong(session.name.value, await SongLogic.readClips(session), addTail);
     const [markers, clips] = await Promise.all([SongLogic.readMarkers(session), SongLogic.readClips(session)]);
-    return SongLogic.computeSongs(markers, clips, SongLogic.tailAdder(session, tailSeconds));
+    return SongLogic.computeSongs(markers, clips, addTail);
   },
 
   /** LUNA's export folder for the session ("…/Exported Files"), or undefined. */

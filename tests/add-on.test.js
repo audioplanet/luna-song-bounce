@@ -58,6 +58,20 @@ describe('songs from markers', () => {
   });
 });
 
+describe('whole song', () => {
+  it('runs from the first clip to the last clip plus the tail, ignoring markers', () => {
+    const songs = L.computeWholeSong('My Song', [c(4, 10), c(2, 12), c(20, 30)], tail2);
+    expect(brief(songs)).toEqual([['My Song', 2, 32, 'last-clip']]);
+    expect(songs[0].fileName).toBe('My Song.wav');
+    expect(L.canTrim(songs[0])).toBe(true);
+  });
+
+  it('is empty when nothing plays, and names an unnamed session', () => {
+    expect(brief(L.computeWholeSong('', [], tail2))).toEqual([['Untitled', 0, null, 'empty']]);
+    expect(L.computeWholeSong('Mix: v2', [c(0, 1)], tail2)[0].fileName).toBe('Mix- v2.wav');
+  });
+});
+
 describe('file names', () => {
   it('makes names safe for the file system', () => {
     expect(L.safeFileName('AC/DC: "Live?" <1>')).toBe('AC-DC- -Live-- -1-');
@@ -116,6 +130,21 @@ describe('against the mock engine', () => {
     await keys.mute.real.set(true);
     await engine.settled();
     expect(brief(await L.songs(session, 0))[1]).toEqual(['Song 2', 20, null, 'empty']);
+  });
+
+  it('reads the whole session as one song named after it, even with section markers', async () => {
+    const { engine, session } = await connected();
+    const bass = session.tracks.items.find((t) => t.name.value === 'Bass');
+    const keys = session.tracks.items.find((t) => t.name.value === 'Keys');
+    engine.addMidiClip('abc', bass.id, { startTick: 2 * BAR, stopTick: 8 * BAR });
+    engine.addMidiClip('abc', keys.id, { startTick: 6 * BAR, stopTick: 26 * BAR });
+    await session.addMarker(2 * BAR, 'Verse');
+    await session.addMarker(10 * BAR, 'Chorus');
+    await session.addMarker(18 * BAR, 'End');
+    await engine.settled();
+    const songs = await L.songs(session, 0, 'whole');
+    expect(brief(songs)).toEqual([[session.name.value, 2, 26, 'last-clip']]);
+    expect(brief(await L.songs(session, 0, 'markers')).map((x) => x[0])).toEqual(['Verse', 'Chorus']);
   });
 
   it('bounces each song from the main output to its own file, in order', async () => {

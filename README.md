@@ -1,7 +1,7 @@
 # Song Bounce
 
-A LUNA Add On that bounces every song in a session to its own file, **through the main
-output** (your main plugins and main fader included), named after the song's marker. It can
+A LUNA Add On that bounces a song, or every song in an album session, to its own file,
+**through the main output** (your main plugins and main fader included). It can
 also make versions (Mix, Instrumental, A cappella…) and minus-one packages for session players,
 and trims each song where its sound fades out.
 
@@ -17,13 +17,23 @@ are closed, so the window title shows which version is loaded.
 
 ## Songs
 
-- Put a marker at the start of each song, named after the song.
+**Bounce** picks how the session is split, and is remembered per session:
+
+- **Whole song** (default): one file named after the session, from its first clip to the end
+  (`My Song.wav`). Markers are ignored, so section markers (Intro, Verse, Chorus…) don't split
+  it.
+- **Song per marker**, for album sessions: put a marker at the start of each song, named after
+  the song, and each song gets its own file.
+
+Then:
+
 - **Song end:**
   - **Trim silence below −60 dB** (default): each song ends just after its sound fades below
     that level, plus half a second. Gaps between songs are left out.
   - **Fixed tail:** the song ends a set number of seconds after its last clip.
-- A marker named **End** ends the song exactly there, whatever the setting.
-- Muted tracks and muted clips don't count. A song never runs into the next marker.
+- In **Song per marker**, a marker named **End** ends the song exactly there, whatever the
+  setting, and a song never runs into the next marker.
+- Muted tracks and muted clips don't count.
 - Tick the songs you want and click **Bounce**: `Song 1.wav`, `Song 2.wav`, …
 
 ## Versions

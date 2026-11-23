@@ -2,7 +2,7 @@
     "package_name": "Song Bounce",
     "id": "com.audioplanet.song_bounce",
     "title": "Song Bounce",
-    "version": "0.4.3",
+    "version": "0.5.0",
     "manufacturer": "Audioplanet",
     "description": "Bounces each song between markers to its own file, through the main output, named after its marker.",
     "categories": ["Import & Export"],

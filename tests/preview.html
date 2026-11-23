@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Preview on the mock engine, no LUNA: serve the Add On folder and open
+     /tests/preview.html?engine=mock. One song with section markers. Not packed (tests/ never is). -->
+<html><head><meta charset="UTF-8"><title>Song Bounce preview</title></head><body>
+<script src="../vendor/luna.global.js"></script>
+<script>
+  const BAR = Luna.WHOLE_NOTE;
+  globalThis.LunaMockSetup = (engine) => {
+    engine.addSession('s1', { name: 'My Song', tracks: ['Bass', 'Keys'], focused: true, packageUid: 'pk' });
+    (async () => {
+      const luna = await Luna.connect({ port_: engine.port() });
+      const s = await luna.session();
+      const [bass, keys] = s.tracks.items;
+      engine.addMidiClip('s1', bass.id, { startTick: 1 * BAR, stopTick: 40 * BAR });
+      engine.addMidiClip('s1', keys.id, { startTick: 9 * BAR, stopTick: 44 * BAR });
+      await s.addMarker(1 * BAR, 'Intro');
+      await s.addMarker(9 * BAR, 'Verse');
+      await s.addMarker(25 * BAR, 'Chorus');
+      await engine.settled();
+      document.getElementById('refresh').click();
+    })();
+  };
+</script>
+<script>
+  // The Add On's own page, loaded into this one.
+  fetch('../index.html').then((r) => r.text()).then((html) => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    document.head.append(...doc.head.querySelectorAll('style'));
+    document.body.append(...[...doc.body.children].filter((n) => n.tagName !== 'SCRIPT'));
+    for (const src of ['../logic.js', '../main.js']) {
+      const sc = document.createElement('script');
+      sc.src = src;
+      sc.async = false;
+      document.body.appendChild(sc);
+    }
+  });
+</script>
+</body></html>

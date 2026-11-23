@@ -81,6 +81,12 @@
   </header>
   <div id="banner" hidden><span>A bounce was interrupted before your mutes were put back.</span><button id="restoreBtn" class="primary">Restore mutes</button><button id="forgetBtn">Ignore</button></div>
   <div class="settings">
+    <label for="mode">Bounce</label>
+    <span class="endrow">
+      <select id="mode"><option value="whole">Whole song</option><option value="markers">Song per marker</option></select>
+      <span id="modeHow" class="how"></span>
+    </span>
+    <span></span>
     <label>Folder</label>
     <span id="folder" title="">–</span>
     <span class="folder-btns">

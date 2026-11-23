@@ -56,6 +56,13 @@ function log(text, isError = false) {
   $('log').prepend(line);
   while ($('log').childElementCount > 150) $('log').lastChild.remove();
 }
+function mode() {
+  return $('mode').value === 'markers' ? 'markers' : 'whole';
+}
+const MODE_HOW = {
+  whole: 'One file named after the session, from the first clip to the end. Markers are ignored.',
+  markers: 'One file per named marker, for album sessions. A marker named “End” ends a song.',
+};
 function tailSeconds() {
   const v = parseFloat($('tail').value);
   return Number.isFinite(v) && v >= 0 ? Math.min(v, 60) : S.DEFAULT_TAIL_SECONDS;
@@ -380,8 +387,10 @@ function renderSongs() {
   $('table').hidden = songs.length === 0;
   $('none').hidden = songs.length > 0 || !session;
   $('none').textContent =
-    'No songs yet. Add a marker at the start of each song and name it after the song. ' +
-    'Each song ends after its last clip plus the tail, or at a marker named “End”.';
+    mode() === 'whole'
+      ? 'Nothing to bounce yet: no clips play in this session.'
+      : 'No songs yet. Add a marker at the start of each song and name it after the song. ' +
+        'Each song ends after its last clip plus the tail, or at a marker named “End”.';
 }
 
 function renderSummary() {
@@ -395,7 +404,7 @@ function renderSummary() {
   $('bounce').disabled = busy || !session || !folder || files === 0;
   $('bounce').textContent = files ? `Bounce ${plural(files, 'file')}` : 'Bounce';
   $('stop').disabled = !busy;
-  for (const id of ['all', 'noneBtn', 'refresh', 'choose', 'tail', 'trimDb', 'endMode', 'addVersion', 'addPkg', 'pkgPart']) $(id).disabled = busy || !session;
+  for (const id of ['mode', 'all', 'noneBtn', 'refresh', 'choose', 'tail', 'trimDb', 'endMode', 'addVersion', 'addPkg', 'pkgPart']) $(id).disabled = busy || !session;
   $('reveal').disabled = !folder;
 }
 
@@ -422,7 +431,7 @@ async function refresh() {
   if (!session || bouncing) return;
   const s = session;
   try {
-    const found = await S.songs(s, trimming() ? S.TRIM_MAX_SECONDS : tailSeconds());
+    const found = await S.songs(s, trimming() ? S.TRIM_MAX_SECONDS : tailSeconds(), mode());
     if (s !== session) return;
     songs = found;
     renderAll();
@@ -535,7 +544,7 @@ async function bounce() {
         renderSongs();
       } else {
         log(`Trimming needs LUNA’s window: open Song Bounce from LUNA’s Add Ons menu. Using a ${tailSeconds()} s tail instead.`, true);
-        const fixed = await S.songs(session, tailSeconds());
+        const fixed = await S.songs(session, tailSeconds(), mode());
         list = list.map((s) => fixed.find((t) => t.name === s.name) ?? s);
       }
     }
@@ -616,6 +625,8 @@ async function bindSessionNow() {
   await s.ready();
   if (s !== session) return;
   $('session').textContent = s.name.value ?? '';
+  $('mode').value = read(`mode.${s.uid}`, 'whole');
+  $('modeHow').textContent = MODE_HOW[mode()];
   folder = read(`folder.${s.uid}`, '') || (await S.exportFolder(luna, s)) || '';
   renderFolder();
   showBanner();
@@ -650,6 +661,14 @@ async function connect() {
   packages = S.parsePackages(read('packages', []));
   packageOff = new Set(read('packagesOff', []));
   $('addPkg').onclick = addPackage;
+  $('modeHow').textContent = MODE_HOW[mode()];
+  $('mode').onchange = () => {
+    if (session) write(`mode.${session.uid}`, mode());
+    $('modeHow').textContent = MODE_HOW[mode()];
+    unticked.clear();
+    status.clear();
+    refresh();
+  };
   $('endMode').value = read('endMode', 'trim');
   $('trimDb').value = read('trimDb', S.DEFAULT_TRIM_DB);
   const showEnd = () => {
